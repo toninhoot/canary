@@ -1521,6 +1521,7 @@ private:
 	void removeExperience(uint64_t exp, bool sendText = false);
 
 	void updateInventoryWeight();
+	void refreshInventoryAndClientState();
 	void updateSerenityState();
 
 	void setNextWalkActionTask(const std::shared_ptr<Task> &task);
