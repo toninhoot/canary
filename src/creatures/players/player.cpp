@@ -5601,6 +5601,7 @@ std::vector<std::shared_ptr<Item>> Player::getEquippedItems() const {
 	};
 
 	std::vector<std::shared_ptr<Item>> valid_items;
+	valid_items.reserve(valid_slots.size());
 	for (const auto &slot : valid_slots) {
 		const auto &item = inventory[slot];
 		if (!item) {
@@ -5622,7 +5623,8 @@ std::map<uint32_t, uint32_t> &Player::getAllItemTypeCount(std::map<uint32_t, uin
 
 std::map<uint16_t, uint16_t> &Player::getAllSaleItemIdAndCount(std::map<uint16_t, uint16_t> &countMap) const {
 	for (const auto &item : getAllInventoryItems(false, true)) {
-		if (item->getID() != ITEM_GOLD_POUCH) {
+		const auto itemId = item->getID();
+		if (itemId != ITEM_GOLD_POUCH) {
 			if (!item->hasMarketAttributes()) {
 				continue;
 			}
@@ -5634,7 +5636,7 @@ std::map<uint16_t, uint16_t> &Player::getAllSaleItemIdAndCount(std::map<uint16_t
 			}
 		}
 
-		countMap[item->getID()] += item->getItemCount();
+		countMap[itemId] += item->getItemCount();
 	}
 
 	return countMap;
@@ -5674,8 +5676,12 @@ std::shared_ptr<Thing> Player::getThing(size_t index) const {
 
 // TODO: review this function
 bool Player::updateSaleShopList(const std::shared_ptr<Item> &item) {
+	if (!item) {
+		return true;
+	}
+
 	const uint16_t itemId = item->getID();
-	if (!itemId || !item) {
+	if (!itemId || scheduledSaleUpdate) {
 		return true;
 	}
 
@@ -5685,15 +5691,23 @@ bool Player::updateSaleShopList(const std::shared_ptr<Item> &item) {
 }
 
 void Player::updateSaleShopList() {
+	if (scheduledSaleUpdate) {
+		return;
+	}
+
 	g_dispatcher().addEvent([creatureId = getID()] { g_game().updatePlayerSaleItems(creatureId); }, __FUNCTION__);
 	scheduledSaleUpdate = true;
 }
 
-void Player::updateState() {
+void Player::refreshInventoryAndClientState() {
 	updateInventoryWeight();
 	updateItemsLight();
 	sendInventoryIds();
 	sendStats();
+}
+
+void Player::updateState() {
+	refreshInventoryAndClientState();
 	if (shopOwner) {
 		updateSaleShopList();
 	}
@@ -8232,10 +8246,7 @@ void Player::postAddNotification(const std::shared_ptr<Thing> &thing, const std:
 			requireListUpdate = oldParent != getPlayer();
 		}
 
-		updateInventoryWeight();
-		updateItemsLight();
-		sendInventoryIds();
-		sendStats();
+		refreshInventoryAndClientState();
 	}
 
 	if (const auto &item = thing->getItem()) {
@@ -8297,10 +8308,7 @@ void Player::postRemoveNotification(const std::shared_ptr<Thing> &thing, const s
 			requireListUpdate = copyNewParent != thisPlayer;
 		}
 
-		updateInventoryWeight();
-		updateItemsLight();
-		sendInventoryIds();
-		sendStats();
+		refreshInventoryAndClientState();
 	}
 
 	if (const auto &item = copyThing->getItem()) {
