@@ -10591,8 +10591,12 @@ uint32_t Game::makeFiendishMonster(uint32_t forgeableMonsterId /* = 0*/, bool cr
 		// If the forgeable monsters haven't been created
 		// Then we'll create them so they don't return in the next if (forgeableMonsters.empty())
 		for (const auto &monster : monsters) {
+			if (!monster) {
+				continue;
+			}
+
 			auto monsterTile = monster->getTile();
-			if (!monster || !monsterTile) {
+			if (!monsterTile) {
 				continue;
 			}
 
